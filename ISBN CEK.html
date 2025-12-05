@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ISBN Checker — ISBN-10 & ISBN-13</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#7dd3fc;--muted:#94a3b8;--glass: rgba(255,255,255,0.03)}
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,'Helvetica Neue',Arial}
+    body{background:linear-gradient(180deg,#071026 0%,#07132a 60%);color:#e6eef8;display:flex;align-items:center;justify-content:center;padding:24px}
+    .card{width:100%;max-width:780px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:22px;box-shadow: 0 6px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+    h1{margin:0 0 8px;font-size:20px}
+    p.lead{margin:0 0 18px;color:var(--muted);font-size:14px}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    input[type=text]{flex:1;padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:inherit;font-size:15px}
+    button{padding:10px 14px;border-radius:8px;border:0;background:linear-gradient(90deg,var(--accent),#60a5fa);color:#04203a;font-weight:600;cursor:pointer}
+    button:active{transform:translateY(1px)}
+    .muted{color:var(--muted);font-size:13px}
+    .result{margin-top:16px;padding:14px;border-radius:8px;background:linear-gradient(180deg, rgba(125,211,252,0.06), rgba(96,165,250,0.02));color:#022029;border:1px solid rgba(125,211,252,0.12)}
+    .error{background:linear-gradient(180deg, rgba(250,204,21,0.08), rgba(249,115,22,0.02));color:#331800;border:1px solid rgba(249,115,22,0.12)}
+    .ok{background:linear-gradient(180deg, rgba(99,255,182,0.06), rgba(79,189,153,0.02));color:#033026;border:1px solid rgba(34,197,94,0.08)}
+    .samples{margin-top:12px;font-size:13px;color:var(--muted)}
+    footer{margin-top:18px;font-size:13px;color:var(--muted)}
+    .flex{display:flex;gap:8px;align-items:center}
+    @media (max-width:520px){.row{flex-direction:column}.card{padding:16px}}
+  </style>
+</head>
+<body>
+  <main class="card" role="main">
+    <h1>ISBN Checker — ISBN-10 &amp; ISBN-13</h1>
+    <p class="lead">Masukkan ISBN (boleh dengan tanda '-' atau spasi). Program ini otomatis mendeteksi ISBN-10 atau ISBN-13 dan memeriksa validitasnya.</p>
+
+    <div class="row">
+      <input id="isbnInput" type="text" placeholder="Contoh: 9780306406157 atau 0306406152 atau 0-306-40615-2" aria-label="ISBN input" />
+      <button id="checkBtn">Cek</button>
+      <button id="clearBtn" style="background:transparent;color:var(--accent);border:1px solid rgba(125,211,252,0.12)">Reset</button>
+    </div>
+
+    <div id="resultArea" style="margin-top:16px"></div>
+
+    <div class="samples">Contoh ISBN valid: <strong>9780306406157</strong> (ISBN-13), <strong>0306406152</strong> (ISBN-10, digit terakhir bisa 'X')</div>
+
+    <footer>
+      <div class="muted">Catatan: ISBN-10 dapat memiliki karakter 'X' (atau 'x') sebagai check digit yang berarti 10. Selalu verifikasi sumber jika ingin membeli atau mengarsipkan buku.</div>
+    </footer>
+  </main>
+
+  <script>
+    function normalize(isbn){
+      return isbn.replace(/[-\s]/g, '').toUpperCase();
+    }
+
+    function isValidISBN10(isbn){
+      if(isbn.length !== 10) return false;
+      let sum = 0;
+      for(let i=0;i<9;i++){
+        const ch = isbn[i];
+        if(!/\d/.test(ch)) return false;
+        sum += parseInt(ch,10) * (10 - i);
+      }
+      const last = isbn[9];
+      if(last === 'X') sum += 10;
+      else if(/\d/.test(last)) sum += parseInt(last,10);
+      else return false;
+      return sum % 11 === 0;
+    }
+
+    function isValidISBN13(isbn){
+      if(isbn.length !== 13) return false;
+      if(!/^\d{13}$/.test(isbn)) return false;
+      let sum = 0;
+      for(let i=0;i<13;i++){
+        const n = parseInt(isbn[i],10);
+        sum += (i % 2 === 0) ? n : 3*n;
+      }
+      return sum % 10 === 0;
+    }
+
+    function renderResult(html, type){
+      const area = document.getElementById('resultArea');
+      const div = document.createElement('div');
+      div.className = 'result ' + (type === 'ok' ? 'ok' : (type === 'error' ? 'error' : ''));
+      div.innerHTML = html;
+      area.innerHTML = '';
+      area.appendChild(div);
+    }
+
+    document.getElementById('checkBtn').addEventListener('click', ()=>{
+      const raw = document.getElementById('isbnInput').value.trim();
+      if(!raw){ renderResult('<strong>Error:</strong> Masukkan ISBN terlebih dahulu.', 'error'); return; }
+      const isbn = normalize(raw);
+      if(isbn.length === 10){
+        const valid = isValidISBN10(isbn);
+        if(valid) renderResult(`<strong>${isbn}</strong> terdeteksi sebagai <strong>ISBN-10</strong> — <strong>VALID</strong> (check digit: ${isbn[9]})`, 'ok');
+        else renderResult(`<strong>${isbn}</strong> terdeteksi sebagai <strong>ISBN-10</strong> — <strong>TIDAK VALID</strong>`, 'error');
+      } else if(isbn.length === 13){
+        const valid = isValidISBN13(isbn);
+        if(valid) renderResult(`<strong>${isbn}</strong> terdeteksi sebagai <strong>ISBN-13</strong> — <strong>VALID</strong>`, 'ok');
+        else renderResult(`<strong>${isbn}</strong> terdeteksi sebagai <strong>ISBN-13</strong> — <strong>TIDAK VALID</strong>`, 'error');
+      } else {
+        renderResult(`<strong>Format tidak sesuai.</strong> ISBN harus memiliki 10 atau 13 karakter (setelah menghapus spasi/dash). Input Anda: ${isbn.length} karakter.`, 'error');
+      }
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', ()=>{
+      document.getElementById('isbnInput').value = '';
+      document.getElementById('resultArea').innerHTML = '';
+    });
+
+    // Enter key submits
+    document.getElementById('isbnInput').addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter') document.getElementById('checkBtn').click();
+    });
+  </script>
+</body>
+</html>
